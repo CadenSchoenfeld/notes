@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Margins</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='4' width='26' height='24' rx='3' fill='%23fffdf7' stroke='%23333' stroke-width='2'/%3E%3Cpath d='M11 4v24' stroke='%23c0392b' stroke-width='2'/%3E%3Crect x='14' y='10' width='11' height='4' rx='1' fill='%23f2c94c'/%3E%3Crect x='14' y='18' width='8' height='2' fill='%23999'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="menu-btn" class="ic big" aria-label="Notebooks" title="Notebooks">☰</button>
+    <div class="meta">
+      <input id="title" placeholder="Untitled" aria-label="Title" autocomplete="off">
+      <div class="meta-sub">
+        <input id="source" placeholder="Source" aria-label="Source" autocomplete="off">
+        <input id="date" type="date" aria-label="Date">
+      </div>
+    </div>
+    <div class="actions">
+      <span id="save-state" class="muted" aria-live="polite"></span>
+      <button id="outline-btn" class="quiet">Outline</button>
+      <button id="export-btn" class="quiet">Export</button>
+      <button id="settings-btn" class="ic big" aria-label="Settings" title="Settings">⚙</button>
+    </div>
+  </header>
+  <div id="notebook-menu" class="dropdown" hidden></div>
+
+  <main class="sheet">
+    <aside class="col" data-col="left" aria-label="Left margin"></aside>
+
+    <section class="center">
+      <div class="toolbar" role="toolbar" aria-label="Formatting">
+        <div class="fmt">
+          <button data-cmd="bold" title="Bold"><b>B</b></button>
+          <button data-cmd="italic" title="Italic"><i>I</i></button>
+          <button data-cmd="underline" title="Underline"><u>U</u></button>
+          <span class="sep"></span>
+          <button data-cmd="formatBlock" data-val="h2" title="Heading">H1</button>
+          <button data-cmd="formatBlock" data-val="h3" title="Subheading">H2</button>
+          <button data-cmd="insertUnorderedList" title="Bulleted list">•&#8202;≡</button>
+          <button data-cmd="insertOrderedList" title="Numbered list">1.</button>
+          <button data-cmd="formatBlock" data-val="blockquote" title="Quotation">❝</button>
+          <button data-cmd="removeFormat" title="Clear formatting">⌫</button>
+        </div>
+        <div id="pens" class="pens" aria-label="Highlight tags"></div>
+      </div>
+      <div class="editor-wrap">
+        <div id="editor" contenteditable="true" spellcheck="true" data-drop="editor"></div>
+      </div>
+      <div class="summary">
+        <h2>Summary</h2>
+        <div id="summary" contenteditable="true"></div>
+      </div>
+    </section>
+
+    <aside class="col" data-col="right" aria-label="Right margin"></aside>
+  </main>
+
+  <div id="popover" class="popover" hidden></div>
+  <div id="linkbar" class="linkbar" hidden><span></span> <button>Cancel (Esc)</button></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <dialog id="outline-dlg" class="dlg wide">
+    <header><h2>Outline</h2>
+      <div class="row"><button data-md-copy>Copy</button><button data-md-dl>.md</button><button class="ic" data-close aria-label="Close">×</button></div>
+    </header>
+    <div class="dlg-body outline"></div>
+  </dialog>
+
+  <dialog id="export-dlg" class="dlg wide">
+    <header><h2>Export</h2><button class="ic" data-close aria-label="Close">×</button></header>
+    <div class="dlg-body export">
+      <div class="export-opts"></div>
+      <div class="export-go">
+        <button class="primary" data-x="pdf">PDF · texlive.net</button>
+        <button data-x="overleaf">Overleaf</button>
+        <button data-x="tex">.tex</button>
+        <button data-x="print">Print</button>
+      </div>
+      <details><summary>Source</summary><textarea class="tex-preview" readonly spellcheck="false"></textarea></details>
+    </div>
+  </dialog>
+
+  <dialog id="settings-dlg" class="dlg wide">
+    <header><h2>Settings</h2><button class="ic" data-close aria-label="Close">×</button></header>
+    <div class="dlg-body settings"></div>
+  </dialog>
+
+  <div id="print-view"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
