@@ -1,7 +1,7 @@
 // Wiring: header, undo, notebooks, and the outline / export / settings dialogs.
 
 import { store, newDoc, normalizeDoc, defaultSettings, DEFAULT_TYPES, uid } from './state.js';
-import { initEditor, loadEditor, renderPens, syncClips, refreshMarks, esc } from './editor.js';
+import { initEditor, loadEditor, renderPens, syncClips, refreshMarks, esc, typeName } from './editor.js';
 import { initMargins, renderMargins, flash, focusGroupName } from './margins.js';
 import { buildOutline, outlineHtml, outlineMarkdown } from './outline.js';
 import { buildLatex, compileTexLiveNet, openInOverleaf } from './latex.js';
@@ -195,7 +195,7 @@ function openExport() {
   const opt = store.settings.latex;
   const checks = [
     ['notes', 'Notes'], ['summary', 'Summary'], ['outline', 'Outline'],
-    ['map', 'Concept map'], ['connections', 'Connections'], ['clarify', 'To clarify'],
+    ['map', 'Concept map'], ['connections', 'Connections'],
   ];
   d.querySelector('.export-opts').innerHTML = `
     <fieldset><legend>Include</legend>${checks.map(([k, label]) =>
@@ -243,24 +243,22 @@ function openSettings() {
   const s = store.settings;
   const draw = () => {
     d.querySelector('.dlg-body').innerHTML = `
-      <h3>Tags</h3>
+      <h3>Highlights</h3>
+      <p class="hint">Write what each colour means to you, or leave it blank.</p>
       <table class="types">
-        <thead><tr><th>Colour</th><th>Name</th><th>Plural</th><th>Card prompt</th><th>Outline</th><th></th></tr></thead>
+        <thead><tr><th>Colour</th><th>Key</th><th></th></tr></thead>
         <tbody>${s.types.map((t, i) => `
           <tr data-i="${i}">
             <td><input type="color" data-f="color" value="${t.color}"></td>
-            <td><input data-f="label" value="${esc(t.label)}"></td>
-            <td><input data-f="plural" value="${esc(t.plural || '')}"></td>
-            <td><input data-f="noteLabel" value="${esc(t.noteLabel || '')}"></td>
-            <td><select data-f="outline"><option value="">Under topic</option><option value="bottom"${t.outline === 'bottom' ? ' selected' : ''}>To clarify</option></select></td>
+            <td><input data-f="label" value="${esc(t.label)}" placeholder="${esc(typeName({ color: t.color }))}"></td>
             <td class="row-acts">
               <button class="ic" data-move="-1" title="Move up"${i ? '' : ' disabled'}>↑</button>
               <button class="ic" data-move="1" title="Move down"${i < s.types.length - 1 ? '' : ' disabled'}>↓</button>
-              <button class="ic" data-del title="Delete tag">×</button>
+              <button class="ic" data-del title="Delete colour">×</button>
             </td>
           </tr>`).join('')}</tbody>
       </table>
-      <div class="row"><button data-add>+ Tag</button><button data-reset-types>Reset</button></div>
+      <div class="row"><button data-add>+ Colour</button><button data-reset-types>Reset</button></div>
       <h3>Writing</h3>
       <div class="row">
         <label>Typeface <select data-s="font">
@@ -268,18 +266,15 @@ function openSettings() {
           <option value="sans"${s.font === 'sans' ? ' selected' : ''}>Sans</option>
           <option value="mono"${s.font === 'mono' ? ' selected' : ''}>Mono</option></select></label>
         <label>Size <input type="number" min="13" max="28" data-s="fontSize" value="${s.fontSize}"> px</label>
-      </div>
-      <label class="check"><input type="checkbox" data-s="prompts"${s.prompts ? ' checked' : ''}> Standing prompts in To clarify</label>`;
+      </div>`;
   };
   d.querySelector('.dlg-body').oninput = e => {
     const t = e.target, row = t.closest('tr');
     if (row && t.dataset.f) {
       s.types[+row.dataset.i][t.dataset.f] = t.value;
-      if (t.dataset.f === 'outline' && !t.value) delete s.types[+row.dataset.i].outline;
     }
     if (t.dataset.s === 'font') s.font = t.value;
     if (t.dataset.s === 'fontSize') s.fontSize = Math.max(13, Math.min(28, +t.value || 18));
-    if (t.dataset.s === 'prompts') s.prompts = t.checked;
     store.saveSettings();
     applyLook();
     renderMargins();
@@ -290,8 +285,7 @@ function openSettings() {
     if (!b) return;
     const i = +b.closest('tr')?.dataset.i;
     if (b.dataset.add != null) {
-      const n = s.types.length + 1;
-      s.types.push({ id: 'tag' + uid(), label: 'Tag ' + n, plural: 'Tag ' + n, color: '#b8b8b8', noteLabel: 'note' });
+      s.types.push({ id: 'c' + uid(), label: '', color: '#b8b8b8' });
     }
     if (b.dataset.del != null) s.types.splice(i, 1);
     if (b.dataset.move) {

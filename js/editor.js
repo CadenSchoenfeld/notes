@@ -8,7 +8,24 @@ let mouseDown = false;
 let structural = false;   // last editor change was a highlight op, so Ctrl+Z should use our undo
 
 export const typeOf = id =>
-  store.settings.types.find(t => t.id === id) || { id, label: id || '?', plural: id || '?', color: '#999999', noteLabel: 'note' };
+  store.settings.types.find(t => t.id === id) || { id, label: '', color: '#999999' };
+
+// The user's key for a colour, or a plain colour word when they haven't given one.
+export function typeName(t) {
+  if (t.label) return t.label;
+  const h = /^#?([0-9a-f]{6})$/i.exec(t.color)?.[1];
+  if (!h) return 'Grey';
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  if (d < 0.12) return max > 0.8 ? 'White' : max < 0.25 ? 'Black' : 'Grey';
+  const hue = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  return [[15, 'Red'], [40, 'Orange'], [70, 'Yellow'], [165, 'Green'], [200, 'Teal'], [255, 'Blue'], [290, 'Purple'], [335, 'Pink'], [360, 'Red']]
+    .find(([lim]) => hue < lim)[1];
+}
+
+// A swatch, followed by the user's key if they've written one.
+const penHtml = (t, attrs) =>
+  `<button class="pen${t.label ? '' : ' bare'}" ${attrs} style="--c:${t.color}" title="${esc(typeName(t))}"><i></i>${esc(t.label)}</button>`;
 
 export function initEditor(hooks) {
   api = hooks;
@@ -45,9 +62,8 @@ export function loadEditor() {
 
 export function renderPens() {
   const box = document.getElementById('pens');
-  box.innerHTML = store.settings.types.map((t, i) =>
-    `<button class="pen${t.id === ui.pen ? ' on' : ''}" data-pen="${t.id}" style="--c:${t.color}"
-       title="${esc(t.label)}"><i></i>${esc(t.label)}</button>`).join('');
+  box.innerHTML = store.settings.types.map(t =>
+    penHtml(t, `data-pen="${t.id}"`).replace('class="pen', `class="pen${t.id === ui.pen ? ' on' : ''}`)).join('');
   if (!store.settings.types.some(t => t.id === ui.pen)) ui.pen = store.settings.types[0]?.id;
 }
 
@@ -247,8 +263,7 @@ function onSelection() {
   if (!r) { if (pop.dataset.mode === 'select') hidePopover(); return; }
   const types = store.settings.types;
   pop.dataset.mode = 'select';
-  pop.innerHTML = `<div class="pop-row">${types.map(t =>
-    `<button class="pen" data-hl="${t.id}" style="--c:${t.color}"><i></i>${esc(t.label)}</button>`).join('')}</div>`;
+  pop.innerHTML = `<div class="pop-row">${types.map(t => penHtml(t, `data-hl="${t.id}"`)).join('')}</div>`;
   pop.onmousedown = ev => ev.preventDefault();
   pop.onclick = ev => {
     const b = ev.target.closest('[data-hl]');
@@ -270,23 +285,23 @@ function showMarkPopover(mark) {
   const clip = doc.clips[cid];
   if (!clip) return;
   const at = locate(doc, cid);
-  const where = at ? (at.group ? `in “${esc(doc.groups[at.group].name || 'Untitled topic')}”` : `in ${esc(doc.columns[at.col].name)}`) : '';
+  const where = at ? (at.group ? `in “${esc(doc.groups[at.group].name || 'Untitled topic')}”` : `on the ${at.col}`) : '';
   const groups = ['left', 'right'].flatMap(col => doc.columns[col].items.filter(i => i.startsWith('g:')).map(i => doc.groups[i.slice(2)]));
   pop.dataset.mode = 'mark';
   pop.innerHTML = `
     <div class="pop-row">
-      <select data-act="type" aria-label="Tag">${store.settings.types.map(t =>
-        `<option value="${t.id}"${t.id === clip.type ? ' selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
+      <select data-act="type" aria-label="Colour">${store.settings.types.map(t =>
+        `<option value="${t.id}"${t.id === clip.type ? ' selected' : ''}>${esc(typeName(t))}</option>`).join('')}</select>
       <span class="pop-where">${where}</span>
     </div>
     <div class="pop-row">
-      <button data-act="left">← ${esc(doc.columns.left.name)}</button>
-      <button data-act="right">${esc(doc.columns.right.name)} →</button>
+      <button data-act="left">← Left</button>
+      <button data-act="right">Right →</button>
       <select data-act="topic" aria-label="Add to topic">
         <option value="">Topic…</option>
         ${groups.map(g => `<option value="${g.id}"${at?.group === g.id ? ' selected' : ''}>${esc(g.name || 'Untitled topic')}</option>`).join('')}
-        <option value="new:left">+ ${esc(doc.columns.left.name)}</option>
-        <option value="new:right">+ ${esc(doc.columns.right.name)}</option>
+        <option value="new:left">+ New on left</option>
+        <option value="new:right">+ New on right</option>
       </select>
     </div>
     <div class="pop-row"><button data-act="remove" class="danger">Remove</button></div>`;

@@ -1,7 +1,7 @@
 // The two Cornell columns: cards, topics, drag and drop, and links between them.
 
 import { store, ui, place, detach, createGroup, moveGroup, deleteGroup, addLink, refLabel } from './state.js';
-import { typeOf, esc, wrapRange, removeHighlight, revealClip, hoverClip, setType, refreshMarks } from './editor.js';
+import { typeOf, esc, wrapRange, removeHighlight, revealClip, hoverClip } from './editor.js';
 
 let api;
 let line;   // drop indicator
@@ -13,7 +13,6 @@ export function initMargins(hooks) {
   const sheet = document.querySelector('.sheet');
   sheet.addEventListener('click', onClick);
   sheet.addEventListener('input', onInput);
-  sheet.addEventListener('change', onChange);
   sheet.addEventListener('keydown', onKeydown);
   sheet.addEventListener('dragstart', onDragStart);
   sheet.addEventListener('mouseover', e => { const c = e.target.closest('.card'); if (c) hoverClip(c.dataset.clip); });
@@ -42,7 +41,6 @@ function renderColumn(col) {
   const el = document.querySelector(`.col[data-col="${col}"]`);
   const c = doc.columns[col];
   el.innerHTML = `
-    <header class="col-head"><h2 contenteditable="plaintext-only" spellcheck="false" data-colname="${col}">${esc(c.name)}</h2></header>
     <div class="col-list" data-drop="col" data-col="${col}"></div>
     <div class="newtopic" data-drop="newtopic" data-col="${col}" role="button" tabindex="0">+ Topic</div>`;
   const list = el.querySelector('.col-list');
@@ -84,17 +82,13 @@ function cardEl(c) {
   el.style.setProperty('--c', t.color);
   el.innerHTML = `
     <div class="card-top">
-      <select class="type" aria-label="Tag">${store.settings.types.map(x =>
-        `<option value="${x.id}"${x.id === c.type ? ' selected' : ''}>${esc(x.label)}</option>`).join('')}
-        ${store.settings.types.some(x => x.id === c.type) ? '' : `<option selected>${esc(c.type)}</option>`}</select>
-      <span class="sp"></span>
       <button class="ic" data-act="link" title="Link">⤳</button>
       <button class="ic" data-act="unplace" title="Unpin">↩</button>
       <button class="ic" data-act="delete" title="Remove">×</button>
     </div>
     <div class="card-text">${esc(c.text) || '<em>empty</em>'}</div>
     ${c.orphan ? `` : ''}
-    <div class="card-note" contenteditable="plaintext-only" data-placeholder="${esc(t.noteLabel || 'note')}">${esc(c.note)}</div>
+    <div class="card-note" contenteditable="plaintext-only" data-placeholder="note">${esc(c.note)}</div>
     ${linksHtml('c:' + c.id)}`;
   return el;
 }
@@ -165,7 +159,7 @@ function onClick(e) {
 
 function onKeydown(e) {
   const t = e.target;
-  if (t.matches?.('[data-gname], [data-colname], .link-rel') && e.key === 'Enter') { e.preventDefault(); t.blur(); }
+  if (t.matches?.('[data-gname], .link-rel') && e.key === 'Enter') { e.preventDefault(); t.blur(); }
   if (t.matches?.('.newtopic') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); t.click(); }
 }
 
@@ -173,18 +167,10 @@ function onKeydown(e) {
 function onInput(e) {
   const t = e.target, doc = store.doc;
   if (t.dataset.gname) doc.groups[t.dataset.gname].name = t.textContent.trim();
-  else if (t.dataset.colname) doc.columns[t.dataset.colname].name = t.textContent.trim() || (t.dataset.colname === 'left' ? 'Cues' : 'Margin');
   else if (t.dataset.link) doc.links[+t.dataset.link].rel = t.textContent.trim();
   else if (t.matches('.card-note')) doc.clips[t.closest('.card').dataset.clip].note = t.textContent.trim();
   else return;
   api.save();
-}
-
-function onChange(e) {
-  if (!e.target.matches('.card .type')) return;
-  const cid = e.target.closest('.card').dataset.clip;
-  api.commit(() => setType(cid, e.target.value));
-  refreshMarks();
 }
 
 function startLinking(ref) {

@@ -1,10 +1,10 @@
 // Data model, persistence, and the small set of mutations everything else uses.
 //
 // A notebook ("doc") holds:
-//   html     the editor contents; highlights are <mark data-clip="id" data-type="term">
+//   html     the editor contents; highlights are <mark data-clip="id" data-type="yellow">
 //   clips    one entry per highlight: { id, type, text, note, orphan }
 //   groups   topics: { id, name, items: [clipId], collapsed }
-//   columns  { left|right: { name, items: ['g:id' | 'c:id'] } }
+//   columns  { left|right: { items: ['g:id' | 'c:id'] } }
 //   links    [{ from: 'c:id'|'g:id', to: 'c:id'|'g:id', rel }]
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
@@ -14,24 +14,37 @@ const KEY_INDEX = 'margins.index';
 const KEY_DOC = 'margins.doc.';
 const KEY_SETTINGS = 'margins.settings';
 
-// `outline: 'bottom'` sends a type to the To-clarify section instead of its topic.
+// Highlight colours. `label` is the user's own key for what a colour means; blank until they set one.
 export const DEFAULT_TYPES = [
-  { id: 'term',     label: 'Term',       plural: 'Terms',      color: '#f2c94c', noteLabel: 'definition' },
-  { id: 'clause',   label: 'Clause',     plural: 'Clauses',    color: '#6fcf97', noteLabel: 'note' },
-  { id: 'question', label: 'Question',   plural: 'Questions',  color: '#79a8f2', noteLabel: 'answer' },
-  { id: 'link',     label: 'Linkage',    plural: 'Linkages',   color: '#c38ef0', noteLabel: 'connects to' },
-  { id: 'clarify',  label: 'To clarify', plural: 'To clarify', color: '#f2907e', noteLabel: "what's unclear", outline: 'bottom' },
+  { id: 'yellow', label: '', color: '#f2c94c' },
+  { id: 'green',  label: '', color: '#6fcf97' },
+  { id: 'blue',   label: '', color: '#79a8f2' },
+  { id: 'purple', label: '', color: '#c38ef0' },
+  { id: 'red',    label: '', color: '#f2907e' },
+  { id: 'orange', label: '', color: '#f5a65b' },
 ];
+
+// Earlier versions shipped fixed meanings; map them onto the plain colours.
+const LEGACY = {
+  term: ['yellow', 'Term'], clause: ['green', 'Clause'], question: ['blue', 'Question'],
+  link: ['purple', 'Linkage'], clarify: ['red', 'To clarify'],
+};
+
+function migrateTypes(types) {
+  return types.map(({ plural, noteLabel, outline, ...t }) => {
+    const old = LEGACY[t.id];
+    return old ? { ...t, id: old[0], label: t.label === old[1] ? '' : t.label } : t;
+  });
+}
 
 export function defaultSettings() {
   return {
     types: structuredClone(DEFAULT_TYPES),
     font: 'serif',
     fontSize: 18,
-    prompts: true,
     latex: {
       paper: 'letterpaper', engine: 'lualatex',
-      notes: true, summary: true, outline: true, map: true, connections: true, clarify: true,
+      notes: true, summary: true, outline: true, map: true, connections: true,
     },
   };
 }
@@ -40,7 +53,7 @@ export function newDoc() {
   return {
     id: uid(), title: '', source: '', date: today(), html: '', summary: '',
     clips: {}, groups: {}, links: [],
-    columns: { left: { name: 'Cues', items: [] }, right: { name: 'Margin', items: [] } },
+    columns: { left: { items: [] }, right: { items: [] } },
     updated: Date.now(),
   };
 }
@@ -63,6 +76,8 @@ export function normalizeDoc(d) {
     right: { ...base.columns.right, ...(d.columns?.right || {}) },
   };
   doc.clips ||= {}; doc.groups ||= {}; doc.links ||= [];
+  for (const c of Object.values(doc.clips)) if (LEGACY[c.type]) c.type = LEGACY[c.type][0];
+  doc.html = (doc.html || '').replace(/data-type="(\w+)"/g, (m, t) => LEGACY[t] ? `data-type="${LEGACY[t][0]}"` : m);
   return doc;
 }
 
@@ -75,6 +90,7 @@ export const store = {
     const s = read(KEY_SETTINGS, null);
     const def = defaultSettings();
     this.settings = s ? { ...def, ...s, latex: { ...def.latex, ...(s.latex || {}) } } : def;
+    this.settings.types = migrateTypes(this.settings.types);
     this.index = read(KEY_INDEX, []);
     const last = this.index[0] && read(KEY_DOC + this.index[0].id, null);
     if (last) this.doc = normalizeDoc(last);
@@ -199,7 +215,7 @@ export function refLabel(doc, ref, max = 60) {
 
 // Shared, non-persisted UI state.
 export const ui = {
-  pen: 'term',        // type used when dragging a raw selection
+  pen: 'yellow',        // type used when dragging a raw selection
   drag: null,         // { kind: 'clip'|'selection'|'group', id?, range?, from? }
   linking: null,      // ref the next click links from
 };
